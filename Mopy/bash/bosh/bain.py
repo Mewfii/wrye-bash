@@ -177,6 +177,7 @@ class Installer(object):
         self.dirty_sizeCrc = bolt.LowerDict()
         self.packageDoc = self.packagePic = None
         #--User Only
+        self.fomod_files_dict = LowerDict()
         self.skipVoices = False
         self.hasExtraData = False
         self.overrideSkips = False
@@ -195,6 +196,8 @@ class Installer(object):
         # LowerDict mapping destinations (relative to Data/ directory) of files
         # in this installer to their size and crc - built in refreshDataSizeCrc
         self.ci_dest_sizeCrc = bolt.LowerDict()
+        self.has_fomod_info = False
+        self.has_fomod_conf = False
         self.hasWizard = False
         self.hasBCF = False
         self.espmMap = bolt.DefaultLowerDict(list)
@@ -599,6 +602,7 @@ class Installer(object):
         """
         type_    = self.type
         #--Init to empty
+        self.has_fomod_info = self.has_fomod_conf = False
         self.hasWizard = self.hasBCF = self.hasReadme = False
         self.packageDoc = self.packagePic = None # = self.extras_dict['readMe']
         for attr in {'skipExtFiles','skipDirFiles','espms'}:
@@ -646,6 +650,16 @@ class Installer(object):
         root_path = self.extras_dict.get('root_path', u'')
         rootIdex = len(root_path)
         for full,size,crc in self.fileSizeCrcs:
+            if full.lower() == "fomod" + os.sep + "info.xml":
+                self.has_fomod_info = full
+            elif full.lower() == "fomod" + os.sep + "moduleconfig.xml":
+                self.has_fomod_conf = full
+            if full in self.fomod_files_dict.values():
+                idx = self.fomod_files_dict.values().index(full)
+                dest = self.fomod_files_dict.keys()[idx]
+                data_sizeCrc[dest] = (size, crc)
+                unSize += size
+                continue
             if rootIdex: # exclude all files that are not under root_dir
                 if not full.startswith(root_path): continue
             file_relative = full[rootIdex:]
@@ -778,6 +792,8 @@ class Installer(object):
                 if filename not in dirty_sizeCrc and sizeCrc != data_sizeCrc.get(filename):
                     dirty_sizeCrc[filename] = sizeCrc
         #--Done (return dest_src for install operation)
+        if self.fomod_files_dict:
+            dest_src = self.fomod_files_dict
         return dest_src
 
     def _find_root_index(self, _os_sep=os_sep, skips_start=_silentSkipsStart):
@@ -981,6 +997,7 @@ class Installer(object):
     def open_wizard(self): self._open_txt_file(self.hasWizard)
     def _open_txt_file(self, rel_path): raise AbstractError
     def wizard_file(self): raise AbstractError
+    def fomod_files(self): raise AbstractError
 
     def __repr__(self):
         return self.__class__.__name__ + u"<" + repr(self.archive) + u">"
@@ -1277,6 +1294,20 @@ class InstallerArchive(Installer):
                 bolt.SubProgress(progress,0,0.9), recurse=True)
         return unpack_dir.join(self.hasWizard)
 
+    def fomod_files(self):
+        with balt.Progress(_(u'Extracting fomod files...'), u'\n' + u' ' * 60,
+                           abort=True) as progress:
+            # Extract everything - this needs to change
+            files_to_extract = [x for (x, _s, _c) in self.fileSizeCrcs]
+            unpack_dir = self.unpackToTemp(files_to_extract,
+                                           bolt.SubProgress(progress, 0, 0.9),
+                                           recurse=True)
+        if self.has_fomod_info:
+            return (unpack_dir.join(self.has_fomod_info),
+                    unpack_dir.join(self.has_fomod_conf))
+        else:
+            return None, unpack_dir.join(self.has_fomod_conf)
+
 #------------------------------------------------------------------------------
 class InstallerProject(Installer):
     """Represents a directory/build installer entry."""
@@ -1478,6 +1509,14 @@ class InstallerProject(Installer):
 
     def wizard_file(self):
         return bass.dirs['installers'].join(self.archive, self.hasWizard)
+
+    def fomod_files(self):
+        if self.has_fomod_info:
+            info = bass.dirs['installers'].join(self.archive, self.has_fomod_info)
+        else:
+            info = None
+        conf = bass.dirs['installers'].join(self.archive, self.has_fomod_conf)
+        return info, conf
 
 def projects_walk_cache(func): ##: HACK ! Profile
     """Decorator to make sure I dont leak self._dir_dirs_files project cache.
