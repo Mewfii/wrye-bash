@@ -177,7 +177,7 @@ class Installer_Fomod(OneItemLink, _InstallerLink):
 
     def __init__(self):
         super(Installer_Fomod, self).__init__()
-        self._text = _(u'Fomod')
+        self._text = _(u'Fomod Installer')
 
     def _enable(self):
         is_single = super(Installer_Fomod, self)._enable()
