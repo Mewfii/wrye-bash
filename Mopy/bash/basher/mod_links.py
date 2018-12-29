@@ -169,7 +169,7 @@ class Mod_OrderByName(EnabledLink):
         #--Do it
         self.selected.sort()
         self.selected.sort(
-            key=lambda m: not bosh.modInfos[m].is_esml()) # sort esmls first
+            key=lambda m: not load_order.in_master_block(m)) # sort esmls first
         if not load_order.using_txt_file():
             #--Get first time from first selected file.
             newTime = min(x.mtime for x in self.iselected_infos())
