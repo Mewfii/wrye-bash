@@ -59,14 +59,18 @@ locked = False
 warn_locked = False
 _lords_pickle = None # type: bolt.PickleDict
 
-max_espms = games.max_espms
-
 def in_master_block(mod, __master_exts=frozenset((u'.esm', u'.esl'))):
     try:
         return _game_handle.in_master_block(mod)
     except KeyError:
         # we are called from the UI master list and mod is not present, check extension
         return mod.cext in __master_exts
+
+def check_active_limit(mods):
+    return _game_handle.check_active_limit(mods)
+
+def max_plugins():
+    return _game_handle.max_espms, _game_handle.max_esls
 
 def initialize_load_order_files():
     if bass.dirs['saveBase'] == bass.dirs['app']:
